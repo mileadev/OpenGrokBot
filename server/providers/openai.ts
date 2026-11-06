@@ -31,7 +31,7 @@ export async function runOpenAiTurn(params: RunTurnParams): Promise<TurnResult> 
   const started = Date.now()
   const cwd = agent.cwd ?? team.workspace
   const allowOutside = agent.autoApproveTools || agent.permissionMode === 'bypassPermissions'
-  const tools = LOCAL_TOOLS.filter((t) => agent.tools.includes(t.claudeName))
+  const tools = LOCAL_TOOLS.filter((t) => agent.tools.includes(t.claudeName) && (t.name !== 'run_command' || allowOutside))
   const messages: ChatMessage[] = [
     { role: 'system', content: buildSystemPrompt(team, conversation, agent, '', notes ?? '') },
     { role: 'user', content: buildTurnPrompt(team, conversation, agent, false, note) },
@@ -54,11 +54,14 @@ export async function runOpenAiTurn(params: RunTurnParams): Promise<TurnResult> 
 
     let res: Response
     try {
-      res = await fetch(`${provider.baseUrl}/chat/completions`, {
+      const endpoint = new URL(`${provider.baseUrl}/chat/completions`)
+      if (!['http:', 'https:'].includes(endpoint.protocol) || endpoint.username || endpoint.password) throw new Error('Invalid model endpoint')
+      res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${provider.apiKey ?? 'none'}`, 'HTTP-Referer': 'https://github.com/Z4YT0N/OpenGrokBot', 'X-Title': 'OpenGrokBot' },
         body: JSON.stringify(body),
         signal,
+        redirect: 'error',
       })
     } catch (err) {
       return { text: text.trim(), error: signal.aborted ? 'Stopped.' : `Could not reach ${provider.baseUrl}: ${err instanceof Error ? err.message : String(err)}`, usage }
@@ -158,7 +161,9 @@ export async function runOpenAiTurn(params: RunTurnParams): Promise<TurnResult> 
 
 /** Lists models from an OpenAI-compatible endpoint, for the provider status page. */
 export async function listOpenAiModels(baseUrl: string, apiKey: string | undefined): Promise<string[]> {
-  const res = await fetch(`${baseUrl}/models`, { headers: { authorization: `Bearer ${apiKey ?? 'none'}` }, signal: AbortSignal.timeout(15_000) })
+  const endpoint = new URL(`${baseUrl}/models`)
+  if (!['https:', 'http:'].includes(endpoint.protocol) || endpoint.username || endpoint.password) throw new Error('Unsupported endpoint protocol')
+  const res = await fetch(endpoint, { redirect: 'error', headers: { authorization: `Bearer ${apiKey ?? 'none'}` }, signal: AbortSignal.timeout(15_000) })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const data = (await res.json()) as { data?: { id?: string }[] }
   return (data.data ?? []).map((m) => m.id).filter((id): id is string => typeof id === 'string').sort()
