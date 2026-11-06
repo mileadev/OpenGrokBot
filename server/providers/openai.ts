@@ -78,9 +78,23 @@ export async function runOpenAiTurn(params: RunTurnParams): Promise<TurnResult> 
     const reader = res.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
+    let streamedBytes = 0
     for (;;) {
-      const { value, done } = await reader.read()
+      let packet: ReadableStreamReadResult<Uint8Array>
+      try {
+        packet = await reader.read()
+      } catch (err) {
+        usage.durationMs = Date.now() - started
+        return { text: text.trim(), error: signal.aborted ? 'Stopped.' : `Model stream interrupted: ${err instanceof Error ? err.message : String(err)}`, usage }
+      }
+      const { value, done } = packet
       if (done) break
+      streamedBytes += value.byteLength
+      if (streamedBytes > 8_000_000) {
+        void reader.cancel().catch(() => {})
+        usage.durationMs = Date.now() - started
+        return { text: text.trim(), error: 'Model stream exceeded the 8 MB response limit.', usage }
+      }
       buffer += decoder.decode(value, { stream: true })
       let nl = buffer.indexOf('\n')
       while (nl !== -1) {
