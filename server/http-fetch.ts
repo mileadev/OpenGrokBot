@@ -65,7 +65,10 @@ export async function fetchPublicText(rawUrl: string, signal: AbortSignal): Prom
         const part = chunk.subarray(0, remaining)
         chunks.push(part)
         bytes += part.length
-        if (bytes >= MAX_BYTES) res.destroy()
+        if (bytes >= MAX_BYTES) {
+          resolve(formatBody(status, Buffer.concat(chunks)))
+          res.destroy()
+        }
       })
       res.on('end', () => resolve(formatBody(status, Buffer.concat(chunks))))
       res.on('close', () => {
