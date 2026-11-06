@@ -1,5 +1,10 @@
 import { spawn } from 'node:child_process'
 
+/** cmd.exe interprets shell metacharacters even when argv strings are separately supplied. */
+export function unsafeWindowsArg(value: string): boolean {
+  return /[&|<>^%!\r\n]/.test(value)
+}
+
 export interface CliRun {
   exitCode: number | null
   stdout: string
@@ -17,6 +22,10 @@ export function runCli(
   opts: { cwd: string; env: NodeJS.ProcessEnv; stdin: string; signal: AbortSignal; onLine?: (line: string) => void },
 ): Promise<CliRun> {
   return new Promise((resolve) => {
+    if (process.platform === 'win32' && args.some(unsafeWindowsArg)) {
+      resolve({ exitCode: 1, stdout: '', stderr: 'Rejected unsafe Windows CLI argument', aborted: false })
+      return
+    }
     // With shell:true on Windows the args are concatenated, so protect paths that contain spaces.
     const safeArgs = process.platform === 'win32' ? args.map((a) => (/\s/.test(a) && !a.startsWith('"') ? `"${a}"` : a)) : args
     const child = spawn(command, safeArgs, {
