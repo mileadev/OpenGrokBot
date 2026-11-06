@@ -46,6 +46,8 @@ export class Memory {
    */
   async update(team: Team, agent: Agent, recent: Message[]): Promise<void> {
     if (this.busy.has(agent.id) || recent.length === 0) return
+    // Background compaction must never export an Ollama/Bedrock agent's transcript to Claude.
+    if (team.providers[agent.provider]?.kind !== 'claude') return
     this.busy.add(agent.id)
     try {
       const names = new Map<string, string>([['user', team.owner.name]])
