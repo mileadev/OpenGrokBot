@@ -59,9 +59,9 @@ HOST=0.0.0.0 OPENGROKBOT_TOKEN="$(openssl rand -hex 32)" npm start
 
 Store that token in a private password manager or environment file; do not commit it. The login form uses a POST request and an HttpOnly cookie. Never pass tokens in URL query strings. All connected AI models can receive the conversation and tool outputs. Do not give agents access to production credentials or private file trees unless necessary.
 
-**Threat model:** agent instructions may be untrusted. The local tools enforce a workspace boundary on file paths, but **shell execution is not an OS sandbox** and is disabled for standard OpenAI-compatible/Bedrock agents unless explicit bypass permissions are enabled. Provider SDKs/CLIs have their own permission behavior. For untrusted models, run the app as an unprivileged OS user in a disposable VM/container without sensitive mounts.
+**Threat model:** agent instructions may be untrusted. Model web fetches use DNS-pinned public addresses with redirects disabled, and HTML/SVG previews run under CSP sandbox. The local tools enforce a workspace boundary on file paths, but **shell execution is not an OS sandbox** and is disabled for standard OpenAI-compatible/Bedrock agents unless explicit bypass permissions are enabled. Provider SDKs/CLIs have their own permission behavior. For untrusted models, run the app as an unprivileged OS user in a disposable VM/container without sensitive mounts.
 
-**Limitations:** smart routing and automatic memory compaction currently invoke Claude. Without Claude credentials they may fall back or skip memory updates. Bedrock integration requires AWS CLI v2 and an authorized Converse-capable model. Tool capabilities differ by model.
+**Limitations:** smart routing and automatic memory compaction currently invoke Claude, even when a chat agent uses a different provider. For fully local operation, set the group mode to `mentions-only` or `everyone` and disable Claude access until these features become provider-neutral. Without Claude credentials they may fall back or skip memory updates. Bedrock integration requires AWS CLI v2 and an authorized Converse-capable model. Tool capabilities differ by model.
 
 ## Project
 
