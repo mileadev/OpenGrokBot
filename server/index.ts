@@ -1,7 +1,7 @@
 import express from 'express'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { copyFileSync, existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Account } from './account.js'
@@ -35,9 +35,11 @@ if (HOST !== '127.0.0.1' && HOST !== 'localhost' && !TOKEN) {
 /** OPENGROKBOT_TEAM / OPENGROKBOT_DATA let you run a second, separate office (demos, tests) from the same install. */
 const teamFile = process.env.OPENGROKBOT_TEAM ? path.resolve(process.env.OPENGROKBOT_TEAM) : path.join(root, 'team.json')
 if (!existsSync(teamFile)) copyFileSync(path.join(root, 'team.example.json'), teamFile)
+if (process.platform !== 'win32') chmodSync(teamFile, 0o600)
 const dataDir = process.env.OPENGROKBOT_DATA ? path.resolve(process.env.OPENGROKBOT_DATA) : path.join(root, 'data')
 const uploadsDir = path.join(dataDir, 'uploads')
-mkdirSync(uploadsDir, { recursive: true })
+mkdirSync(uploadsDir, { recursive: true, mode: 0o700 })
+if (process.platform !== 'win32') chmodSync(uploadsDir, 0o700)
 let team = loadTeam(teamFile)
 const store = new Store(dataDir)
 store.seed(team)
@@ -91,7 +93,13 @@ app.post('/api/auth/login', (req, res) => {
 function publicTeam(t: Team): Team {
   const providers: Team['providers'] = {}
   for (const [id, p] of Object.entries(t.providers)) providers[id] = { ...p, ...(p.apiKey ? { apiKey: '••••' } : {}) }
-  return { ...t, providers }
+  // Never expose MCP environment variables or HTTP authorization headers through /api/state or SSE.
+  const mcpServers: Team['mcpServers'] = {}
+  for (const [id, def] of Object.entries(t.mcpServers)) {
+    if (def.type === 'stdio') mcpServers[id] = { ...def, ...(def.env ? { env: Object.fromEntries(Object.keys(def.env).map((key) => [key, '••••'])) } : {}) }
+    else mcpServers[id] = { ...def, ...(def.headers ? { headers: Object.fromEntries(Object.keys(def.headers).map((key) => [key, '••••'])) } : {}) }
+  }
+  return { ...t, providers, mcpServers }
 }
 
 function state(): AppState {
@@ -263,6 +271,9 @@ app.get('/api/file', (req, res) => {
     return
   }
   res.setHeader('X-Content-Type-Options', 'nosniff')
+  if (['text/html', 'image/svg+xml', 'application/xhtml+xml'].includes(mimeOf(p))) {
+    res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data: https:; font-src data:")
+  }
   res.setHeader('Content-Type', mimeOf(p) + (mimeOf(p).startsWith('text/') || mimeOf(p) === 'application/json' ? '; charset=utf-8' : ''))
   if (req.query.download === '1') res.setHeader('Content-Disposition', `attachment; filename="${path.basename(p)}"`)
   res.sendFile(path.resolve(p))
