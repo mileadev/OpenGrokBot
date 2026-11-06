@@ -31,12 +31,12 @@ export function safeFetchUrl(value: string): URL {
 }
 
 /** Default loopback deployment must reject attacker-owned Host headers (DNS rebinding). */
-export function trustedHost(hostHeader: string | undefined, listenHost: string, listenPort: number): boolean {
+export function trustedHost(hostHeader: string | undefined, listenHost: string, listenPort: number, approvedHosts: string[] = []): boolean {
   if (listenHost !== '127.0.0.1' && listenHost !== 'localhost') return true
   if (!hostHeader) return false
   const host = hostHeader.toLowerCase()
   const suffix = ':' + listenPort
-  return ['127.0.0.1', 'localhost', '[::1]'].some((name) =>
+  return ['127.0.0.1', 'localhost', '[::1]', ...approvedHosts.map((name) => name.toLowerCase())].some((name) =>
     host === name || host === name + suffix)
 }
 
