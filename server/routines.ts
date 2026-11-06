@@ -113,7 +113,7 @@ export class Routines {
 
   private flush(): void {
     const tmp = `${this.file}.tmp`
-    writeFileSync(tmp, JSON.stringify(this.routines, null, 2))
+    writeFileSync(tmp, JSON.stringify(this.routines, null, 2), { mode: 0o600 })
     renameSync(tmp, this.file)
     emit({ type: 'routines', routines: this.routines })
   }

@@ -80,7 +80,7 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
   const changeProvider = (id: string) => {
     const next = team.providers[id]
     const suggestions = next ? [...(next.models ?? []), ...MODEL_SUGGESTIONS[next.kind]] : []
-    setDraft((d) => ({ ...d, provider: id, model: suggestions[0] ?? d.model, tools: d.tools.filter((t) => TOOLS.find((x) => x.id === t)?.kinds.includes(next?.kind ?? 'claude')) }))
+    setDraft((d) => ({ ...d, provider: id, model: suggestions[0] ?? (next?.kind === 'bedrock' ? '' : d.model), tools: d.tools.filter((t) => TOOLS.find((x) => x.id === t)?.kinds.includes(next?.kind ?? 'claude')) }))
   }
 
   const save = async () => {
@@ -226,7 +226,7 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
                 </option>
               ))}
             </datalist>
-            <small>{MODELS.find((m) => m.id === draft.model)?.hint ?? (kind === 'claude' ? 'Any model id Claude Code accepts.' : kind === 'openai' ? 'Any model the API serves. Test the provider in Settings to list them.' : '"default" uses the CLI’s own configured model.')}</small>
+            <small>{MODELS.find((m) => m.id === draft.model)?.hint ?? (kind === 'claude' ? 'Any model id Claude Code accepts.' : kind === 'openai' ? 'Any model the API serves. Test the provider in Settings to list them.' : kind === 'bedrock' ? 'Enter a Converse-capable Bedrock model ID or inference profile for the configured region.' : '"default" uses the CLI’s own configured model.')}</small>
           </label>
           <label className="field">
             <span>Effort</span>
@@ -255,8 +255,8 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
               </label>
             ))}
           </div>
-          {kind === 'openai' && <p className="hint">API employees run these tools locally through OpenGrokBot (file read/search/edit, shell, web fetch).</p>}
-          {(kind === 'codex' || kind === 'gemini') && <p className="hint">Edit/Write/Bash switch the CLI sandbox to workspace-write; otherwise it runs read-only.</p>}
+          {(kind === 'openai' || kind === 'bedrock') && <p className="hint">Provider tools run locally. Shell execution requires explicit bypass permission; restrict access to disposable workspaces.</p>}
+          {(kind === 'codex' || kind === 'gemini') && <p className="hint">CLI approvals cannot appear in this app. Ask policies restrict Codex to read-only and Gemini to its default confirmation mode; do not expect in-chat approval cards.</p>}
           <label className="field">
             <span>Permissions</span>
             <select value={draft.permissionMode} onChange={(e) => set('permissionMode', e.target.value as PermissionMode)}>

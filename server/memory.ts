@@ -31,7 +31,7 @@ export class Memory {
   write(agentId: string, text: string): void {
     const f = this.file(agentId)
     const tmp = `${f}.tmp`
-    writeFileSync(tmp, text.trim().slice(0, MAX_CHARS * 2))
+    writeFileSync(tmp, text.trim().slice(0, MAX_CHARS * 2), { mode: 0o600 })
     renameSync(tmp, f)
   }
 
@@ -46,6 +46,8 @@ export class Memory {
    */
   async update(team: Team, agent: Agent, recent: Message[]): Promise<void> {
     if (this.busy.has(agent.id) || recent.length === 0) return
+    // Background compaction must never export an Ollama/Bedrock agent's transcript to Claude.
+    if (team.providers[agent.provider]?.kind !== 'claude') return
     this.busy.add(agent.id)
     try {
       const names = new Map<string, string>([['user', team.owner.name]])

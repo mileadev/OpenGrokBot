@@ -46,7 +46,7 @@ export class Account {
 
   private flush(): void {
     const tmp = `${this.file}.tmp`
-    writeFileSync(tmp, JSON.stringify(this.status, null, 2))
+    writeFileSync(tmp, JSON.stringify(this.status, null, 2), { mode: 0o600 })
     renameSync(tmp, this.file)
   }
 }

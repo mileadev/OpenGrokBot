@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Account } from './account.js'
 import { providerKeepsSession, runAgentTurn } from './agent.js'
-import { reviewByRules, type Approvals } from './approvals.js'
+import { needsApproval, reviewByRules, type Approvals } from './approvals.js'
 import { emit } from './events.js'
 import { collectAttachments } from './files.js'
 import type { Memory } from './memory.js'
@@ -322,6 +322,7 @@ export class Orchestrator {
         onToolPermission: async (tool, input) => {
           const verdict = reviewByRules(this.getTeam(), tool, input)
           if (verdict === 'allow') return true
+          if (verdict !== 'require' && !needsApproval(agent, tool)) return true
           start()
           const line = `Waiting for your approval: ${tool}`
           message.activity?.push(line)

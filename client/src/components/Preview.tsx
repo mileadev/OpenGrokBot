@@ -95,7 +95,7 @@ export function FileCard({ a, team }: { a: Attachment; team?: Team }) {
           {kind === 'video' && <video src={url} controls preload="metadata" onClick={(e) => e.stopPropagation()} />}
           {kind === 'audio' && <audio src={url} controls preload="metadata" onClick={(e) => e.stopPropagation()} />}
           {kind === 'pdf' && <iframe src={url} title={a.name} loading="lazy" />}
-          {kind === 'html' && <iframe src={url} title={a.name} sandbox="allow-same-origin" loading="lazy" />}
+          {kind === 'html' && <iframe src={url} title={a.name} sandbox="" loading="lazy" />}
           {(kind === 'text' || kind === 'markdown') && <TextBody a={a} expanded={expanded} {...(team ? { team } : {})} />}
         </div>
       )}

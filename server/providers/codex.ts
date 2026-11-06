@@ -23,8 +23,12 @@ export async function runCodexTurn(params: RunTurnParams): Promise<TurnResult> {
   const { team, conversation, agent, provider, sessionId, signal, handlers, note, notes } = params
   const started = Date.now()
   const cwd = agent.cwd ?? team.workspace
-  const common = ['--json', '--skip-git-repo-check', '-C', cwd, ...(agent.model && agent.model !== 'default' ? ['-m', agent.model] : []), '-s', sandboxFor(agent.tools, agent.autoApproveTools || agent.permissionMode === 'bypassPermissions'), '-c', `model_reasoning_effort="${EFFORT[agent.effort] ?? 'medium'}"`]
-  if (agent.autoApproveTools || agent.permissionMode === 'bypassPermissions') common.push('--dangerously-bypass-approvals-and-sandbox')
+  // Headless Codex has no in-chat tool-approval callback. Ask policies must fail closed.
+  const approvalGated = agent.approvals !== 'auto' && !agent.autoApproveTools
+  const bypass = !approvalGated && (agent.autoApproveTools || agent.permissionMode === 'bypassPermissions')
+  const sandbox = approvalGated ? 'read-only' : sandboxFor(agent.tools, bypass)
+  const common = ['--json', '--skip-git-repo-check', '-C', cwd, ...(agent.model && agent.model !== 'default' ? ['-m', agent.model] : []), '-s', sandbox, '-c', `model_reasoning_effort="${EFFORT[agent.effort] ?? 'medium'}"`]
+  if (bypass) common.push('--dangerously-bypass-approvals-and-sandbox')
   const args = sessionId ? ['exec', ...common, 'resume', sessionId, '-'] : ['exec', ...common, '-']
 
   // Codex has no system-prompt flag: the persona rides in the first prompt of the thread.

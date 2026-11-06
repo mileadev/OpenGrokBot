@@ -68,6 +68,10 @@ export async function routeSpeakers(team: Team, conversation: Conversation, user
   const manager = members.find((a) => !a.muted) ?? members[0]
   const fallback: Route = { speakers: manager ? [manager] : [], mode: 'discuss', why: 'fallback' }
   if (members.length <= 1) return { speakers: members, mode: 'answer', why: 'single member' }
+  // Never transmit a local/Bedrock team's conversation to Claude for routing implicitly.
+  if (!manager || team.providers[manager.provider]?.kind !== 'claude') {
+    return { ...fallback, why: 'manager provider is not Claude; no cross-provider routing' }
+  }
 
   const abort = new AbortController()
   const onAbort = (): void => abort.abort()

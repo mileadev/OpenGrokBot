@@ -61,10 +61,14 @@ function mcpServersFor(team: Team, agent: Agent): Record<string, McpServerConfig
 
 export function buildQueryOptions(team: Team, conversation: Conversation, agent: Agent, provider: ProviderDef, sessionId: string | undefined, abort: AbortController, handlers?: TurnHandlers, notes = ''): Options {
   const mcpServers = mcpServersFor(team, agent)
-  const asks = agent.approvals !== 'auto' && !agent.autoApproveTools && handlers?.onToolPermission !== undefined
-  // Tools that must stop for approval are left out of allowedTools so Claude Code calls canUseTool for them.
+  const possibleRequire = (tool: string): boolean => team.settings.autoReview.some((rule) =>
+    rule.action === 'require' && (rule.tool === '*' || rule.tool.toLowerCase() === tool.toLowerCase()))
+  const hasRequires = team.settings.autoReview.some((rule) => rule.action === 'require')
+  const asks = handlers?.onToolPermission !== undefined &&
+    ((agent.approvals !== 'auto' && !agent.autoApproveTools) || hasRequires)
+  // Do not pre-allow potentially restricted calls; review input at execution time.
   const allowedTools = asks
-    ? agent.tools.filter((t) => !needsApproval(agent, t))
+    ? agent.tools.filter((tool) => !needsApproval(agent, tool) && !possibleRequire(tool))
     : [...agent.tools, ...Object.keys(mcpServers).map((n) => `mcp__${n}`)]
   const mcpNote = agent.mcpServers.length > 0 ? ` You also have MCP tools from: ${agent.mcpServers.join(', ')}.` : ''
   const options: Options = {
@@ -74,7 +78,7 @@ export function buildQueryOptions(team: Team, conversation: Conversation, agent:
     cwd: agent.cwd ?? team.workspace,
     tools: agent.tools,
     allowedTools,
-    permissionMode: asks && (agent.permissionMode === 'dontAsk' || agent.permissionMode === 'acceptEdits') ? 'default' : agent.permissionMode,
+    permissionMode: asks && ['dontAsk', 'acceptEdits', 'bypassPermissions'].includes(agent.permissionMode) ? 'default' : agent.permissionMode,
     includePartialMessages: true,
     settingSources: agent.inheritClaudeSettings ? ['user'] : [],
     maxTurns: team.settings.maxTurnsPerReply,
@@ -83,17 +87,18 @@ export function buildQueryOptions(team: Team, conversation: Conversation, agent:
   }
   if (Object.keys(mcpServers).length > 0) options.mcpServers = mcpServers
   if (sessionId) options.resume = sessionId
-  if (agent.autoApproveTools) {
-    options.canUseTool = async (_tool, input) => ({ behavior: 'allow', updatedInput: input })
-  } else if (asks && handlers?.onToolPermission) {
+  if (asks && handlers?.onToolPermission) {
     const ask = handlers.onToolPermission
     options.canUseTool = async (tool, input) => {
-      if (!needsApproval(agent, tool)) return { behavior: 'allow', updatedInput: input }
+      if (agent.autoApproveTools && !possibleRequire(tool)) return { behavior: 'allow', updatedInput: input }
+      if (!needsApproval(agent, tool) && !possibleRequire(tool)) return { behavior: 'allow', updatedInput: input }
       const ok = await ask(tool, input)
-      return ok ? { behavior: 'allow', updatedInput: input } : { behavior: 'deny', message: 'The boss denied this action. Explain what you wanted to do and stop.' }
+      return ok ? { behavior: 'allow', updatedInput: input } : { behavior: 'deny', message: 'The owner denied this tool call.' }
     }
+  } else if (agent.autoApproveTools) {
+    options.canUseTool = async (_tool, input) => ({ behavior: 'allow', updatedInput: input })
   }
-  if (agent.permissionMode === 'bypassPermissions') options.allowDangerouslySkipPermissions = true
+  if (agent.permissionMode === 'bypassPermissions' && !asks) options.allowDangerouslySkipPermissions = true
   return options
 }
 
