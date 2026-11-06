@@ -47,4 +47,6 @@ test('localhost Host allowlist prevents DNS rebinding', () => {
     assert.equal(trustedHost(name, '127.0.0.1', 4310), false, name)
   }
   assert.equal(trustedHost('tailnet.example:4310', '0.0.0.0', 4310), true, 'remote mode requires token')
+  assert.equal(trustedHost('myhost.tailnet.ts.net', '127.0.0.1', 4310), false, 'proxy domains must be explicit')
+  assert.equal(trustedHost('myhost.tailnet.ts.net', '127.0.0.1', 4310, ['myhost.tailnet.ts.net']), true)
 })
