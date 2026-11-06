@@ -84,3 +84,22 @@ test('approval denial blocks an advertised local file-write', async () => {
     assert.equal(existsSync(file), false)
   } finally { globalThis.fetch = originalFetch; rmSync(cwd, { recursive: true, force: true }) }
 })
+
+test('interrupted model stream returns an error instead of rejecting the turn', async () => {
+  const cwd = mkdtempSync(path.join(os.tmpdir(), 'ogb-stream-'))
+  const originalFetch = globalThis.fetch
+  try {
+    globalThis.fetch = async () => new Response(new ReadableStream<Uint8Array>({
+      start(controller) { controller.error(new Error('simulated stream failure')) },
+    }), { headers: { 'content-type': 'text/event-stream' } })
+    const fx = fixture(cwd)
+    const result = await runOpenAiTurn({
+      ...fx, signal: new AbortController().signal, sessionId: undefined,
+      handlers: { onDelta: () => {}, onActivity: () => {}, onSession: () => {} },
+    })
+    assert.match(result.error ?? '', /Model stream interrupted: simulated stream failure/)
+  } finally {
+    globalThis.fetch = originalFetch
+    rmSync(cwd, { recursive: true, force: true })
+  }
+})

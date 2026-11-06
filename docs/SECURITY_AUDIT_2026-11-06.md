@@ -37,3 +37,19 @@ npm audit --omit=dev --audit-level=high
 Verify manually with an unprivileged test workspace: (1) Ollama model list + chat, (2) Bedrock AWS CLI v2 Converse response + tool approval, (3) HTML/SVG preview CSP, (4) denied symlink file access, (5) unauthorized cross-site POST, (6) absence of provider/MCP secrets in `/api/state`, (7) no implicit Anthropic traffic for Ollama-only teams.
 
 **Rollback:** revert the follow-up PR if regressions occur; keep existing `team.json` and `data/` backups. Before enabling arbitrary shell tools, snapshot the disposable workspace. Never restore older URL-token login behavior for externally accessible installs.
+
+
+## Release hardening follow-up (2026-11-06)
+
+- **Loopback Host validation:** reject unapproved `Host` headers to reduce localhost DNS-rebinding exposure. Reverse proxies/Tailscale Serve must use explicit `OPENGROKBOT_ALLOWED_HOSTS` and a token; HTTPS deployments set `OPENGROKBOT_COOKIE_SECURE=1`.
+- **Windows CLI arguments:** reject cmd.exe metacharacters and quote-breakout inputs; unrestricted agent shell execution remains an intentional high-risk, opt-in capability.
+- **OpenAI-compatible streaming:** handle interrupted streams as structured agent errors and cap response reads at 8 MB.
+- **Repository metadata:** correct `package.json` homepage to the current fork.
+
+### Verification performed
+
+An isolated Node 22 / TypeScript 5.8 environment compiled the security, DNS-pinned HTTP-fetch and Windows CLI modules in strict mode. Their Git blob SHA-1 hashes were checked against the exact source files on the follow-up branch. **13 of 13 focused regression tests passed** (`security.test.ts`, `http-fetch.test.ts`, `providers/cli.test.ts`, `providers/openai.test.ts`, `providers/bedrock.test.ts`). The OpenAI runner and Bedrock adapter were tested as exact Git blob matches, using isolated dependency stubs where needed. A mock AWS CLI exercised two Bedrock Converse turns, a denied file-write tool, and token usage aggregation; no real AWS credentials were used. This is *not* a complete repository build or authenticated provider smoke test.
+
+### Remaining release gates
+
+The execution environment could not access GitHub/npm to install the full dependency graph. GitHub reported **zero Actions runs**, preventing verification of `npm ci`, full typechecking, all nested provider tests, client build, dependency audit, Windows CI and real Ollama/Bedrock credentials. Treat the application as a locally testable release candidate, **not a production-validated release**, until these gates pass.

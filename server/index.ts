@@ -5,7 +5,7 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, statSync, writeFileSync
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Account } from './account.js'
-import { insideRoots, trustedRequestOrigin } from './security.js'
+import { insideRoots, trustedHost, trustedRequestOrigin } from './security.js'
 import { Approvals } from './approvals.js'
 import { CRON_PRESETS, nextRun } from './cron.js'
 import { emit, subscribe } from './events.js'
@@ -27,6 +27,11 @@ const PORT = Number(process.env.PORT ?? 4310)
 /** 127.0.0.1 by default. Set HOST=0.0.0.0 plus OPENGROKBOT_TOKEN to reach it from your phone or a VPS. */
 const HOST = process.env.HOST ?? '127.0.0.1'
 const TOKEN = process.env.OPENGROKBOT_TOKEN?.trim() || null
+const APPROVED_HOSTS = (process.env.OPENGROKBOT_ALLOWED_HOSTS ?? '').split(',').map((host) => host.trim()).filter(Boolean)
+if (APPROVED_HOSTS.length > 0 && !TOKEN) {
+  console.error('[opengrokbot] OPENGROKBOT_ALLOWED_HOSTS requires OPENGROKBOT_TOKEN')
+  process.exit(1)
+}
 if (HOST !== '127.0.0.1' && HOST !== 'localhost' && !TOKEN) {
   console.error('[opengrokbot] Refusing to listen on a non-local address without OPENGROKBOT_TOKEN. Set the token, or keep HOST=127.0.0.1.')
   process.exit(1)
@@ -57,6 +62,10 @@ app.use((req, res, next) => {
   res.setHeader('Referrer-Policy', 'no-referrer')
   res.setHeader('X-Frame-Options', 'DENY')
   res.setHeader('Cache-Control', 'no-store')
+  if (!trustedHost(req.get('host'), HOST, PORT, APPROVED_HOSTS)) {
+    res.status(421).json({ error: 'Untrusted Host header' })
+    return
+  }
   if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !trustedRequestOrigin(req)) {
     res.status(403).json({ error: 'Untrusted request origin' })
     return
@@ -84,7 +93,7 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '2mb' }))
 app.post('/api/auth/login', (req, res) => {
   if (!TOKEN || req.body?.token !== TOKEN) { res.status(401).json({ error: 'unauthorized' }); return }
-  const secure = req.secure
+  const secure = req.secure || process.env.OPENGROKBOT_COOKIE_SECURE === '1'
   res.setHeader('Set-Cookie', `${COOKIE}=${encodeURIComponent(TOKEN)}; Path=/; HttpOnly; SameSite=Strict; ${secure ? 'Secure; ' : ''}Max-Age=86400`)
   res.json({ ok: true })
 })

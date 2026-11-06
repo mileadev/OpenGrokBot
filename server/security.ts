@@ -30,6 +30,16 @@ export function safeFetchUrl(value: string): URL {
   return url
 }
 
+/** Default loopback deployment must reject attacker-owned Host headers (DNS rebinding). */
+export function trustedHost(hostHeader: string | undefined, listenHost: string, listenPort: number, approvedHosts: string[] = []): boolean {
+  if (listenHost !== '127.0.0.1' && listenHost !== 'localhost') return true
+  if (!hostHeader) return false
+  const host = hostHeader.toLowerCase()
+  const suffix = ':' + listenPort
+  return ['127.0.0.1', 'localhost', '[::1]', ...approvedHosts.map((name) => name.toLowerCase())].some((name) =>
+    host === name || host === name + suffix)
+}
+
 /** Reject foreign browser origins for state-changing requests, including localhost mode. */
 export function trustedRequestOrigin(req: Pick<Request, 'headers' | 'get'>): boolean {
   const origin = req.get('origin')
@@ -43,7 +53,7 @@ export function trustedRequestOrigin(req: Pick<Request, 'headers' | 'get'>): boo
     if (url.protocol !== 'https:' && url.protocol !== 'http:') return false
     if (url.host === destination) return true
     // Vite development proxy rewrites Host to :4310; only permit the local dev UI.
-    return destination === '127.0.0.1:4310' && url.hostname === '127.0.0.1' && url.port === '5180'
+    return destination === '127.0.0.1:4310' && (url.hostname === '127.0.0.1' || url.hostname === 'localhost') && url.port === '5180'
   } catch {
     return false
   }

@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { insideRoots, safeFetchUrl, trustedRequestOrigin } from './security.js'
+import { insideRoots, safeFetchUrl, trustedHost, trustedRequestOrigin } from './security.js'
 
 test('file root containment rejects traversal and symlink escapes', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'ogb-security-'))
@@ -36,5 +36,18 @@ test('mutation origins block cross-site browsers', () => {
   assert.equal(trustedRequestOrigin(req('https://evil.example', 'cross-site')), false)
   assert.equal(trustedRequestOrigin(req('http://127.0.0.1:4310', 'same-origin')), true)
   assert.equal(trustedRequestOrigin(req('http://127.0.0.1:5180', 'same-origin')), true)
+  assert.equal(trustedRequestOrigin(req('http://localhost:5180', 'same-origin')), true)
   assert.equal(trustedRequestOrigin(req(undefined, 'cross-site')), false)
+})
+
+test('localhost Host allowlist prevents DNS rebinding', () => {
+  for (const name of ['127.0.0.1', 'localhost', '[::1]', 'localhost:4310', '127.0.0.1:4310']) {
+    assert.equal(trustedHost(name, '127.0.0.1', 4310), true, name)
+  }
+  for (const name of ['evil.example:4310', 'localhost.attacker.tld:4310', '127.0.0.1:4444', '', 'localhost:4310.evil']) {
+    assert.equal(trustedHost(name, '127.0.0.1', 4310), false, name)
+  }
+  assert.equal(trustedHost('tailnet.example:4310', '0.0.0.0', 4310), true, 'remote mode requires token')
+  assert.equal(trustedHost('myhost.tailnet.ts.net', '127.0.0.1', 4310), false, 'proxy domains must be explicit')
+  assert.equal(trustedHost('myhost.tailnet.ts.net', '127.0.0.1', 4310, ['myhost.tailnet.ts.net']), true)
 })
