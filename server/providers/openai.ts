@@ -138,16 +138,18 @@ export async function runOpenAiTurn(params: RunTurnParams): Promise<TurnResult> 
     for (const call of toolCalls) {
       let args: Record<string, unknown> = {}
       try {
-        args = JSON.parse(call.function.arguments || '{}') as Record<string, unknown>
+        const parsed: unknown = JSON.parse(call.function.arguments || '{}')
+        if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) args = parsed as Record<string, unknown>
       } catch {
         args = {}
       }
+      const allowedTool = tools.find((t) => t.name === call.function.name)
       handlers.onActivity(summarizeLocalTool(call.function.name, args))
       let result: string
-      const claudeName = LOCAL_TOOLS.find((t) => t.name === call.function.name)?.claudeName ?? call.function.name
-      const mustAsk = !agent.autoApproveTools && handlers.onToolPermission !== undefined && needsApproval(agent, claudeName)
       try {
-        if (mustAsk && !(await handlers.onToolPermission?.(claudeName, args))) result = 'Denied by the boss. Explain what you wanted to do and stop.'
+        if (!allowedTool) result = 'Denied: tool not enabled for this agent.'
+        else if (handlers.onToolPermission && !(await handlers.onToolPermission(allowedTool.claudeName, args))) result = 'Denied by owner approval policy.'
+        else if (!handlers.onToolPermission && needsApproval(agent, allowedTool.claudeName)) result = 'Denied: approval callback unavailable.'
         else result = await runLocalTool(call.function.name, args, cwd, allowOutside, signal)
       } catch (err) {
         result = `Error: ${err instanceof Error ? err.message : String(err)}`
