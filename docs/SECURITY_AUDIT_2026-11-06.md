@@ -48,7 +48,7 @@ Verify manually with an unprivileged test workspace: (1) Ollama model list + cha
 
 ### Verification performed
 
-An isolated Node 22 / TypeScript 5.8 environment compiled the security, DNS-pinned HTTP-fetch and Windows CLI modules in strict mode. Their Git blob SHA-1 hashes were checked against the exact source files on the follow-up branch. **8 of 8 focused regression tests passed** (`security.test.ts`, `http-fetch.test.ts`, `providers/cli.test.ts`). A Node 22 stream-failure fixture and TypeScript stream-read type check also passed. This is *not* a complete repository build or authenticated provider smoke test.
+An isolated Node 22 / TypeScript 5.8 environment compiled the security, DNS-pinned HTTP-fetch and Windows CLI modules in strict mode. Their Git blob SHA-1 hashes were checked against the exact source files on the follow-up branch. **13 of 13 focused regression tests passed** (`security.test.ts`, `http-fetch.test.ts`, `providers/cli.test.ts`, `providers/openai.test.ts`, `providers/bedrock.test.ts`). The OpenAI runner and Bedrock adapter were tested as exact Git blob matches, using isolated dependency stubs where needed. A mock AWS CLI exercised two Bedrock Converse turns, a denied file-write tool, and token usage aggregation; no real AWS credentials were used. This is *not* a complete repository build or authenticated provider smoke test.
 
 ### Remaining release gates
 
