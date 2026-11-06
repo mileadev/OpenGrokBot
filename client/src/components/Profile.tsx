@@ -256,7 +256,7 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
             ))}
           </div>
           {(kind === 'openai' || kind === 'bedrock') && <p className="hint">Provider tools run locally. Shell execution requires explicit bypass permission; restrict access to disposable workspaces.</p>}
-          {(kind === 'codex' || kind === 'gemini') && <p className="hint">Edit/Write/Bash switch the CLI sandbox to workspace-write; otherwise it runs read-only.</p>}
+          {(kind === 'codex' || kind === 'gemini') && <p className="hint">CLI approvals cannot appear in this app. Ask policies restrict Codex to read-only and Gemini to its default confirmation mode; do not expect in-chat approval cards.</p>}
           <label className="field">
             <span>Permissions</span>
             <select value={draft.permissionMode} onChange={(e) => set('permissionMode', e.target.value as PermissionMode)}>
