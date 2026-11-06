@@ -1,4 +1,4 @@
-import { readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { chmodSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { DEFAULT_PROVIDERS } from '../shared/catalog.js'
 import type { Agent, AutoReviewRule, McpServerDef, ProviderDef, Skill, Team, TeamSettings } from '../shared/types.js'
@@ -215,6 +215,7 @@ export function loadTeam(file: string): Team {
 
 export function saveTeam(file: string, team: Team): void {
   const tmp = `${file}.tmp`
-  writeFileSync(tmp, `${JSON.stringify(team, null, 2)}\n`)
+  writeFileSync(tmp, `${JSON.stringify(team, null, 2)}\n`, { mode: 0o600 })
   renameSync(tmp, file)
+  if (process.platform !== 'win32') chmodSync(file, 0o600)
 }
