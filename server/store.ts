@@ -163,7 +163,7 @@ export class Store {
   private flush(c: Conversation): void {
     const file = path.join(this.dir, `${c.id}.json`)
     const tmp = `${file}.tmp`
-    writeFileSync(tmp, JSON.stringify(c, null, 2))
+    writeFileSync(tmp, JSON.stringify(c, null, 2), { mode: 0o600 })
     renameSync(tmp, file)
   }
 }
