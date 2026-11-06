@@ -58,7 +58,7 @@ export async function runOpenAiTurn(params: RunTurnParams): Promise<TurnResult> 
       if (!['http:', 'https:'].includes(endpoint.protocol) || endpoint.username || endpoint.password) throw new Error('Invalid model endpoint')
       res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${provider.apiKey ?? 'none'}`, 'HTTP-Referer': 'https://github.com/Z4YT0N/OpenGrokBot', 'X-Title': 'OpenGrokBot' },
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${provider.apiKey ?? 'none'}`, 'HTTP-Referer': 'https://github.com/mileadev/OpenGrokBot', 'X-Title': 'OpenGrokBot' },
         body: JSON.stringify(body),
         signal,
         redirect: 'error',
