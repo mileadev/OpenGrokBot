@@ -31,7 +31,7 @@ export class Memory {
   write(agentId: string, text: string): void {
     const f = this.file(agentId)
     const tmp = `${f}.tmp`
-    writeFileSync(tmp, text.trim().slice(0, MAX_CHARS * 2))
+    writeFileSync(tmp, text.trim().slice(0, MAX_CHARS * 2), { mode: 0o600 })
     renameSync(tmp, f)
   }
 
