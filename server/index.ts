@@ -5,7 +5,7 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, statSync, writeFileSync
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Account } from './account.js'
-import { insideRoots, trustedRequestOrigin } from './security.js'
+import { insideRoots, trustedHost, trustedRequestOrigin } from './security.js'
 import { Approvals } from './approvals.js'
 import { CRON_PRESETS, nextRun } from './cron.js'
 import { emit, subscribe } from './events.js'
@@ -57,6 +57,10 @@ app.use((req, res, next) => {
   res.setHeader('Referrer-Policy', 'no-referrer')
   res.setHeader('X-Frame-Options', 'DENY')
   res.setHeader('Cache-Control', 'no-store')
+  if (!trustedHost(req.get('host'), HOST, PORT)) {
+    res.status(421).json({ error: 'Untrusted Host header' })
+    return
+  }
   if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !trustedRequestOrigin(req)) {
     res.status(403).json({ error: 'Untrusted request origin' })
     return
@@ -84,7 +88,7 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '2mb' }))
 app.post('/api/auth/login', (req, res) => {
   if (!TOKEN || req.body?.token !== TOKEN) { res.status(401).json({ error: 'unauthorized' }); return }
-  const secure = req.secure
+  const secure = req.secure || process.env.OPENGROKBOT_COOKIE_SECURE === '1'
   res.setHeader('Set-Cookie', `${COOKIE}=${encodeURIComponent(TOKEN)}; Path=/; HttpOnly; SameSite=Strict; ${secure ? 'Secure; ' : ''}Max-Age=86400`)
   res.json({ ok: true })
 })
