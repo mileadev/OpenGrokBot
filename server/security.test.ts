@@ -36,6 +36,7 @@ test('mutation origins block cross-site browsers', () => {
   assert.equal(trustedRequestOrigin(req('https://evil.example', 'cross-site')), false)
   assert.equal(trustedRequestOrigin(req('http://127.0.0.1:4310', 'same-origin')), true)
   assert.equal(trustedRequestOrigin(req('http://127.0.0.1:5180', 'same-origin')), true)
+  assert.equal(trustedRequestOrigin(req('http://localhost:5180', 'same-origin')), true)
   assert.equal(trustedRequestOrigin(req(undefined, 'cross-site')), false)
 })
 
