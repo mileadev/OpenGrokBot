@@ -249,7 +249,8 @@ app.put('/api/uploads/:conversationId/:name', express.raw({ type: () => true, li
   const conv = String(req.params.conversationId).replace(/[^a-z0-9_-]/gi, '')
   const safe = path.basename(String(req.params.name)).replace(/[\\/:*?"<>|]/g, '_').slice(0, 120) || 'file'
   const dir = path.join(uploadsDir, conv)
-  mkdirSync(dir, { recursive: true })
+  mkdirSync(dir, { recursive: true, mode: 0o700 })
+  if (process.platform !== 'win32') chmodSync(dir, 0o700)
   const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)
   const file = path.join(dir, `${stamp}-${safe}`)
   const body = req.body as Buffer
@@ -257,7 +258,7 @@ app.put('/api/uploads/:conversationId/:name', express.raw({ type: () => true, li
     res.status(400).json({ error: 'empty upload' })
     return
   }
-  writeFileSync(file, body)
+  writeFileSync(file, body, { mode: 0o600 })
   const headerMime = String(req.headers['content-type'] ?? '')
   const attachment: Attachment = { name: safe, path: file, mime: headerMime && headerMime !== 'application/octet-stream' ? headerMime : mimeOf(file), size: body.length }
   res.json({ attachment })
