@@ -2,7 +2,8 @@ import { spawn } from 'node:child_process'
 
 /** cmd.exe interprets shell metacharacters even when argv strings are separately supplied. */
 export function unsafeWindowsArg(value: string): boolean {
-  return /[&|<>^%!\r\n]/.test(value)
+  if (/^model_reasoning_effort="(?:low|medium|high|xhigh)"$/.test(value)) return false
+  return /[&|<>^%!"\r\n]/.test(value)
 }
 
 export interface CliRun {
