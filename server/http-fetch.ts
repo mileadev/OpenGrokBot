@@ -48,7 +48,6 @@ export async function fetchPublicText(rawUrl: string, signal: AbortSignal): Prom
       signal,
       timeout: TIMEOUT_MS,
       headers: { 'user-agent': 'OpenGrokBot/1.0', accept: 'text/html,text/plain,application/json' },
-      autoSelectFamily: false,
       lookup: (_host, _options, callback) => callback(null, selected.address, selected.family),
     }, (res) => {
       const status = res.statusCode ?? 0
