@@ -53,7 +53,7 @@ export function trustedRequestOrigin(req: Pick<Request, 'headers' | 'get'>): boo
     if (url.protocol !== 'https:' && url.protocol !== 'http:') return false
     if (url.host === destination) return true
     // Vite development proxy rewrites Host to :4310; only permit the local dev UI.
-    return destination === '127.0.0.1:4310' && url.hostname === '127.0.0.1' && url.port === '5180'
+    return destination === '127.0.0.1:4310' && (url.hostname === '127.0.0.1' || url.hostname === 'localhost') && url.port === '5180'
   } catch {
     return false
   }
