@@ -112,13 +112,12 @@ export async function runBedrockTurn(params: RunTurnParams): Promise<TurnResult>
     for (const call of calls) {
       const tool = tools.find((t) => t.name === call.name)
       const args = call.input ?? {}
-      const claudeName = tool?.claudeName ?? call.name
       handlers.onActivity(summarizeLocalTool(call.name, args))
       let output: string
       try {
-        const needsAsk = !agent.autoApproveTools && needsApproval(agent, claudeName)
         if (!tool) output = 'Denied: unknown or unconfigured tool'
-        else if (needsAsk && !(await handlers.onToolPermission?.(claudeName, args))) output = 'Denied by the owner'
+        else if (handlers.onToolPermission && !(await handlers.onToolPermission(tool.claudeName, args))) output = 'Denied by owner approval policy.'
+        else if (!handlers.onToolPermission && needsApproval(agent, tool.claudeName)) output = 'Denied: approval callback unavailable.'
         else output = await runLocalTool(call.name, args, cwd, allowOutside, signal)
       } catch (err) {
         output = 'Tool error: ' + (err instanceof Error ? err.message : String(err))
