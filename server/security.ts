@@ -30,6 +30,16 @@ export function safeFetchUrl(value: string): URL {
   return url
 }
 
+/** Default loopback deployment must reject attacker-owned Host headers (DNS rebinding). */
+export function trustedHost(hostHeader: string | undefined, listenHost: string, listenPort: number): boolean {
+  if (listenHost !== '127.0.0.1' && listenHost !== 'localhost') return true
+  if (!hostHeader) return false
+  const host = hostHeader.toLowerCase()
+  const suffix = ':' + listenPort
+  return ['127.0.0.1', 'localhost', '[::1]'].some((name) =>
+    host === name || host === name + suffix)
+}
+
 /** Reject foreign browser origins for state-changing requests, including localhost mode. */
 export function trustedRequestOrigin(req: Pick<Request, 'headers' | 'get'>): boolean {
   const origin = req.get('origin')
